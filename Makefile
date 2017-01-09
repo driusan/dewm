@@ -1,4 +1,4 @@
-MDFILES= src/Initialize.md
+MDFILES= src/Initialize.md src/WindowManaging.md
 
 all: ${MDFILES}
 	rm -rf keysym
