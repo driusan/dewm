@@ -441,6 +441,7 @@ So then:
 <<<Load KeyMapping>>>
 <<<Gather All Windows>>>
 ```
+
 ### "Get Setup Information"
 ```go
 setup := xproto.Setup(xc)
@@ -581,9 +582,13 @@ all of them. We can even use goroutines so that they can be removed in parallel.
 ### "X11 Event Loop Type Handlers" +=
 ```go
 case xproto.DestroyNotifyEvent:
-	<<<Remove Window From All Workspaces>>>
+	<<<DestroyEvent Handler>>>
 ```
 
+### "DestroyEvent Handler"
+```go
+<<<Remove Window From All Workspaces>>>
+```
 ### "Remove Window From All Workspaces"
 ```go
 for _, w := range workspaces {
@@ -958,7 +963,10 @@ if err := xproto.ChangeWindowAttributesChecked(
 	xc,
 	xproto.Window(win),
 	xproto.CwEventMask,
-	[]uint32{xproto.EventMaskStructureNotify}).Check(); err != nil {
+	[]uint32{
+	<<<Window Event Mask>>>
+	},
+	).Check(); err != nil {
 	return err
 }
 
@@ -995,6 +1003,10 @@ default:
 return nil
 ```
 
+### "Window Event Mask"
+```
+xproto.EventMaskStructureNotify,
+```
 We could also improve the destroy logic to remove an empty column when there's
 no windows left in it, but since our model is acme and acme doesn't behave that
 way, maybe we shouldn't.
