@@ -766,7 +766,7 @@ defer wp.mu.Unlock()
 for colnum, column := range wp.columns {
 	idx := -1
 	for i, candwin := range column.Windows {
-		if w == candwin {
+		if w.Window == candwin.Window {
 			idx = i
 			break
 		}
@@ -795,7 +795,7 @@ defer wp.mu.Unlock()
 for colnum, column := range wp.columns {
 	idx := -1
 	for i, candwin := range column.Windows {
-		if w == candwin {
+		if w.Window == candwin.Window {
 			idx = i
 			break
 		}
@@ -824,7 +824,7 @@ defer wp.mu.Unlock()
 for colnum, column := range wp.columns {
 	idx := -1
 	for i, candwin := range column.Windows {
-		if w == candwin {
+		if w.Window == candwin.Window {
 			idx = i
 			break
 		}
@@ -857,7 +857,7 @@ defer wp.mu.Unlock()
 for colnum, column := range wp.columns {
 	idx := -1
 	for i, candwin := range column.Windows {
-		if w == candwin {
+		if w.Window == candwin.Window {
 			idx = i
 			break
 		}

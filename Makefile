@@ -1,5 +1,5 @@
 MDFILES= src/Initialize.md src/WindowManaging.md src/Keyboard.md \
-	src/KeyboardWindowManagement.md
+	src/KeyboardWindowManagement.md src/ColumnManagement.md
 
 all: ${MDFILES}
 	rm -rf keysym
