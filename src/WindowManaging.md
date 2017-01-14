@@ -134,7 +134,7 @@ workspaces = make(map[string]*Workspace)
 defaultw := &Workspace{}
 for _, c := range tree.Children {
 	
-	if err := defaultw.Add(ManagedWindow(c)); err != nil {
+	if err := defaultw.Add(c); err != nil {
 		log.Println(err)
 	}
 
@@ -147,7 +147,7 @@ logic that we decided on above to try and guess the right column.
 
 ### "window.go functions" +=
 ```go
-func (w *Workspace) Add(win ManagedWindow) error {
+func (w *Workspace) Add(win xproto.Window) error {
 	<<<Add Window to Workspace>>>
 }
 ```
@@ -727,7 +727,7 @@ that we have everything in place to do it in a thread-safe manner:
 ```go
 // RemoveWindow removes a window from the workspace. It returns
 // an error if the window is not being managed by w.
-func (wp *Workspace) RemoveWindow(w ManagedWindow) error {
+func (wp *Workspace) RemoveWindow(w xproto.Window) error {
 	<<<RemoveWindow implementation>>>
 }
 ```
@@ -740,7 +740,7 @@ defer wp.mu.Unlock()
 for colnum, column := range wp.columns {
 	idx := -1
 	for i, candwin := range column {
-		if w == candwin {
+		if w == xproto.Window(candwin) {
 			idx = i
 			break
 		}
@@ -762,7 +762,7 @@ goroutine to use a closure if RemoveWindow returns a nil error
 ```go
 for _, w := range workspaces {
 	go func() {
-		if err := w.RemoveWindow(ManagedWindow(e.Window)); err == nil {
+		if err := w.RemoveWindow(e.Window); err == nil {
 			w.TileWindows()
 		}
 	}()
@@ -775,30 +775,35 @@ when we delete the last window in a column, we crash with a divide by zero error
 workspace tiling will have a similar bug for calculating the width, so let's fix
 them both.
 
-### "Tile Workspace Windows Implementation"
+### "Column TileColumn implementation"
 ```go
-if w.Screen == nil {
-	return fmt.Errorf("Workspace not attached to a screen.")
-}
-
-n := uint32(len(w.columns))
+n := uint32(len(c))
 if n == 0 {
-	// This isn't an error, we're just done..
 	return nil
 }
-size := uint32(w.Screen.Width) / n
+
+height := colheight / n
 var err error
-for i, c := range w.columns {
-	if err != nil {
-		// Don't overwrite err if there's an error, but still
-		// tile the rest of the columns instead of returning.
-		c.TileColumn(uint32(i)*size, size, uint32(w.Screen.Height))
-	} else {
-		err = c.TileColumn(uint32(i)*size, size, uint32(w.Screen.Height))
+for i, win := range c {
+	if werr := xproto.ConfigureWindowChecked(
+		xc,
+		xproto.Window(win),
+		xproto.ConfigWindowX|
+			xproto.ConfigWindowY|
+			xproto.ConfigWindowWidth|
+			xproto.ConfigWindowHeight,
+		[]uint32{
+			xstart,
+			uint32(i) * height,
+			colwidth,
+			height,
+		}).Check(); werr != nil {
+		err = werr
 	}
 }
 return err
 ```
+
 
 ### "Column TileColumn implementation"
 ```go
@@ -923,7 +928,7 @@ case xproto.MapRequestEvent:
 ```go
 w := workspaces["default"]
 xproto.MapWindowChecked(xc, e.Window)
-w.Add(ManagedWindow(e.Window))
+w.Add(e.Window)
 ```
 
 We now have an unusual situation where the xterms we spawn appear, but only after
@@ -984,7 +989,7 @@ case 1:
 		w.columns[0] = append(w.columns[0], win)
 	} else {
 		// There's something in the primary column, so create a new one.
-		w.columns = append(w.columns, Column{win})
+		w.columns = append(w.columns.Windows, Column{Windows: { win }, SizeDelta: 0})
 	}
 default:
 	// Add to the first empty column we can find, and shortcircuit out
