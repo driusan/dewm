@@ -446,7 +446,12 @@ and change the active window pointer whenever we get a EnterNotify event
 ### "X11 Event Loop Type Handlers" +=
 ```go
 case xproto.EnterNotifyEvent:
-	activeWindow = &e.Event
+	<<<Handle EnterNotify>>>
+```
+
+### "Handle EnterNotify"
+```go
+activeWindow = &e.Event
 ```
 
 We should also check that we unset it when a window is destroyed.
@@ -668,16 +673,16 @@ we need them.
 
 ### "main.go globals" +=
 ```go
-<<<Atom definitions>>>
+// ICCCM related atoms
+var (
+	<<<Atom definitions>>>
+)
 ```
 
 ### "Atom definitions"
 ```go
-// ICCCM related atoms
-var (
-	atomWMProtocols xproto.Atom
-	atomWMDeleteWindow xproto.Atom
-)
+atomWMProtocols xproto.Atom
+atomWMDeleteWindow xproto.Atom
 ```
 
 ### "Initialize Atoms"
