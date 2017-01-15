@@ -1,4 +1,4 @@
-## Moving Windows
+# Moving Windows
 
 Now that we're dogfooding our window manager (or at least, I am) it's fairly
 obvious that, while autotiling works pretty well, there's a couple minor problems.
@@ -9,8 +9,9 @@ obvious that, while autotiling works pretty well, there's a couple minor problem
 2. We don't always want perfectly sized columns (or tiles.) Sometimes you want
    some leeway to make something bigger (or smaller)
 
+Let's start with the first problem.
+
 ## Window Moving, Part 1
-Let's start with the first.
 
 I'm a longtime vi user (though now I use my own text editor, [de](https://github.com/driusan/de)),
 so I like using hjkl for moving things around. Ideally, we could use ctrl-hjkl
@@ -41,13 +42,13 @@ key isn't on the home row beside the "a" key, but it's probably not unusable.)
 ```
 
 Now, all we need to do is add a key handler which swaps it with the window
-beside it and calls TileWindows.
+above/below or moves it to the column next ot it and calls TileWindows.
 
-This probably won't work once we add window resizing, but it's a start.
+This might not work once we add window resizing, but it's a start.
 
-Let's start by adding up/down/left/right handlers to the workspace. We can't
+Let's start by adding Up/Down/Left/Right Methods on the Workspace type. (We can't
 add it to ManagedWindow, because the Window has no knowledge of what workspace
-it's in.
+it's in.)
 
 It might be cleaner to put these in their own file, so let's do that.
 
@@ -312,3 +313,6 @@ if activeWindow != nil && key.State == xproto.ModMask1 {
 return nil
 ```
 
+Now that we can move windows, our window manager is getting more useable.
+
+ResizingWindows.md builds on this to let us resize them, too.

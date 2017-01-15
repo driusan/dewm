@@ -1,8 +1,9 @@
 # Keyboard Bindings
 
 We want to be able to launch windows or do some basic management with the keyboard,
-since we haven't implemented any other way to do it and it should be the simplest
-thing to do. We also want to be able to hit Ctrl-Alt-Backspace from any window,
+since we haven't implemented any other way to do it.
+
+We also want to be able to hit Ctrl-Alt-Backspace from any window,
 not just the root window in order to quit. To do either of these, we'll have
 to ensure we grab the keys we want with xproto.GrabKey, so that we get the
 key event even if we're in another window. Let's start by adding a Grab Keys
@@ -40,7 +41,7 @@ But what are PointerMode and KeyboardMode?
 
 The GoDocs don't say, but the X11 documentation defines the valid values as:
 
-pointer-mode, keyboard-mode: { Synchronous, Asynchronous}
+> pointer-mode, keyboard-mode: { Synchronous, Asynchronous}
 
 The xproto GoDocs *do* have these consts defined:
 
@@ -70,10 +71,13 @@ The [X11 specification](https://www.x.org/releases/X11R7.7/doc/xproto/x11protoco
 > Actual pointer changes are not lost while the pointer is frozen. They are
 > simply queued for later processing.
 
-Okay.. so Async it is!
+Async it is!
 
 Let's start with Ctrl-Alt-Backspace. We already know the mask from our
 Initialization.md
+
+We iterate through our keymap looking for any XK_BackSpace keysym, as discussed
+above.
 
 ### "Grab Keys"
 ```go
@@ -418,11 +422,11 @@ the application has its own quit function.) We should add a keystroke to destroy
 an existing window.
 
 The `xproto` package has a DestroyWindowChecked method, but to use it we need
-to know which window to destroy. Maybe *that's* why the other window managers
-were listening for EnterNotify events.. now that we're at this point, let's
-try and ensure we get notified when a window gets focused (since we're sticking
-with focus-follows-pointer semantics, entering a window is the same as giving
-it focus.)
+to know which window to destroy. (Maybe *that's* why the other window managers
+were listening for EnterNotify events..) Let's try and ensure we get notified
+when a window gets focused (since we're sticking with focus-follows-pointer 
+semantics, entering a window is the same as giving it focus) by adding it to
+the event mask. Then, we can keep track of the active window.
 
 ### "Window Event Mask"
 ```go
@@ -455,7 +459,8 @@ if activeWindow != nil && e.Window == *activeWindow {
 ```
 
 Now, we should be able to call DestroyWindowChecked when we push some kind of
-"quit" key. Let's use alt-q. (I don't think I type that very often.)
+"quit" key. Let's use alt-q. (I don't think I type that very often, so it's
+unlikely to conflict with other programs.)
 
 ### "Keystroke Detail Switch" +=
 ```go
@@ -478,7 +483,7 @@ if activeWindow != nil {
 }
 ```
 
-And we'll have to grab the key, too.
+We'll have to grab the "q" key, too, before we can test this.
 
 The GrabKeys is getting a little unwieldy and we can't just keep adding new keys
 to it, so let's re-architecture it a little to have an array of things we want
@@ -544,7 +549,8 @@ for _, grabbed := range grabs {
 },
 ```
 
-Now, we should be able to add more keys next time.
+Now that we've done this refactoring, we should be able to add more keys more
+easily next time.
 
 This seems to work, except we notice that the xterms we spawned are staying
 around as zombie processes, so when we spawn them, let's add a goroutine
@@ -573,8 +579,8 @@ it says:
 > Window managers should not use DestroyWindow requests on a window that has
 > WM_DELETE_WINDOW in its WM_PROTOCOLS property. 
 
-The most of the text is written from the point of view of what a client (Window)
-but it's enough to gather that what we should do is:
+Most of the text is written from the point of view of what a client (Window),
+not the window manager, but it's enough to gather that what we should do is:
 
 1. Check for the WM_DELETE_WINDOW atom in the WM_PROTOCOLS
 2. Send a WM_DELETE_WINDOW ClientMessage event
@@ -730,7 +736,7 @@ return xproto.SendEventChecked(
 ).Check()
 ```
 
-Checking taowm, they use:
+Checking taowm for the string parameter we don't understand, they use:
 
 ```go
 string(xp.ClientMessageEvent{
@@ -778,8 +784,7 @@ used before (and is maybe where we should have started):
 That gives us a little more context for understanding where taowm came up with
 its string. In fact, now that we've read that, it's probably the only way to do
 it with `github.com/BurntSushi/xgb/xproto` We don't have the eventTime field
-handy, but if all that's required is "a timestamp", we can just use time.Now
-(which is probably closer what the spec intended anyways.)
+handy, but if all that's required is "a timestamp", we can just use time.Now.
 
 ### "Send WM_DELETE_WINDOW message to *activeWindow"
 ```go
@@ -812,5 +817,5 @@ We can now safely quit things! (We can test this by opening a couple firefox
 windows, pressing alt-q, and verifying that it prompts us with a warning that
 we're closing multiple tabs, instead of a crash report.)
 
-Next up, we'll be building on our window management and key grabbing to add keys
-for window management in KeyboardWindowManagement.md
+Next up, we'll be building on our window management and add keys for moving
+windows around in MovingWindows.md.

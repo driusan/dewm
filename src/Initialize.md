@@ -46,18 +46,15 @@ already one running.  How do we do this?
 If we look at the source for wingo or taowm, they both use `github.com/BurntSushi/xgb/xproto`
 to do this. wingo in the function 'own' and taowm in 'becomeTheWM' (wingo is more
 advanced in that it tries to replace the WM if one's already running, so
-taowm's approach is probably better for us to look at.
+taowm's approach is probably better for us to look at right now.)
 
-taowm simply calls on xproto.ChangeWindowAttributesChecked the root window with
+taowm simply calls `xproto.ChangeWindowAttributesChecked` on the root window with
 some parameters. If the call fails, someone else has ownership of the root window.
 That approach seems simpler, so let's take that. The only problem is
 `ChangeWindowAttributesChecked` needs both the X connection and the window that
 we want to change attributes on (the root window, in our case) as parameters. We'll
 take a similar approach to taowm and store them in globals, because I have a
-feeling we'll need them a lot.
-
-We may want to eventually have command line flags, too, so let's assume there's
-a block before Initializing X to handle it. We'll leave it blank for now.
+feeling we'll be needing them a lot.
 
 ### "main.go globals"
 ```go
@@ -73,20 +70,20 @@ var xroot xproto.ScreenInfo
 
 ### "main implementation"
 ```go
-<<<Handle Commandline Flags>>>
 <<<Initialize X>>>
 ```
 
-### "Handle Commandline Flags"
-```go
-```
-
+As we said, our initialization needs to do the following:
 
 ### "Initialize X"
 ```go
 <<<Connect to X Server>>>
 <<<Set xroot to Root Window>>>
 ```
+
+Connecting to the X server is fairly straight forward with the xgb package that
+we're using.
+
 ### "Connect to X Server"
 ```go
 xcon, err := xgb.NewConn()
@@ -116,8 +113,9 @@ if coninfo == nil {
 
 But how do we get the root window itself? `*xproto.SetupInfo` has a Roots slice.
 An X Server can technically have multiple root windows for each screen, but in
-practice in any modern system uses the Xinerama "extension" to unify them into
-one root window so you can do things like drag windows between screens.
+practice any modern system uses the Xinerama "extension" to unify them into one
+root window so you can do things like drag windows between screens.
+
 It's probably appropriate to take an approach similar to taowm and only support
 a single root window and require xinerama for now, then, like them, we can
 just ensure that `len(confinfo.Roots) == 1` and safely assume coninfo.Roots[0]
@@ -140,12 +138,15 @@ xroot = coninfo.Roots[0]
 
 For Xinerama, we'll use the BurntSushi xinerama package, again taking our inspiration
 from taowm.
+
 ### "Initialize Xinerama"
 ```go
 if err := xinerama.Init(xc); err != nil {
 	log.Fatal(err)
 }
 ```
+
+We'll also have to add the couple imports that we used.
 
 ### "main.go imports" +=
 ```go
@@ -158,10 +159,14 @@ from trying this as a simple WM: we haven't actually taken ownership of the root
 and we don't have an event loop looking for X events, which means our program exits
 immediately (and so does X.)
 
+Let's add an event loop to our main implementation.
+
 ### "main implementation" +=
 ```go
 <<<X11 Event Loop>>>
 ```
+
+And add some code for taking ownership to the initialization.
 
 ### "Initialize X" +=
 ```go
@@ -171,10 +176,10 @@ immediately (and so does X.)
 For taking ownership, we now have enough to call xproto.ChangeWindowAttributesChecked
 on the root window. Once again, we'll look to taowm for inspiration: they call the
 function on the root window. If the error returned is of type xp.AccessError, they
-assume another WM is running. They call it with `xproto.CwEventMask` in order to get
-notified of the given events happening on the root window.
+assume another WM is running. They call it with an `xproto.CwEventMask` in order
+to get notified of the events they care about happening on the root window.
 
-Let's try the same
+Let's try the same.
 
 ### "main.go functions" +=
 ```go
@@ -199,17 +204,19 @@ for user input:
 
 ### "Root Window Event Mask"
 ```go
-    xproto.EventMaskKeyPress |
-    xproto.EventMaskKeyRelease |
-    xproto.EventMaskButtonPress |
-    xproto.EventMaskButtonRelease,
+xproto.EventMaskKeyPress |
+xproto.EventMaskKeyRelease |
+xproto.EventMaskButtonPress |
+xproto.EventMaskButtonRelease,
 ```
+
+Now that we've defined our TakeWMOwnership function, we can try using it in
+our initialization block.
 
 ### "Take WM Ownership"
 ```go
 if err := TakeWMOwnership(); err != nil {
 	if _, ok := err.(xproto.AccessError); ok {
-		println("Trying to take ownership2")
 		log.Fatal("Could not become the WM. Is another WM already running?")
 	}
 	log.Fatal(err)
@@ -217,7 +224,7 @@ if err := TakeWMOwnership(); err != nil {
 ```
 
 That leaves our event loop. We'll just go into an infinite loop making blocking
-calls to xproto.WaitForEvent and print the event to os.Stderr to make sure we're
+calls to `xproto.WaitForEvent` and print the event to os.Stderr to make sure we're
 getting the events we expect. (In fact, since we don't have any way to quit yet,
 we'll die after 5 events so that we can debug.)
 
@@ -241,15 +248,16 @@ we get one for press and one for release.)
 No window told X to draw a cursor, so it doesn't draw one. If we add something
 like "chromium" to our `~/.xinitrc`, we'll notice that we do, in fact, get
 a cursor on the screen (with the default X cursor when we're not over the 
-chromium window. Other window managers (like our trusty taowm) get around
+chromium window. Other window managers (like our trusty taowm) seem to get around
 this by creating a full screen desktop window in the background, but this
 is enough to answer our question of "will we get the events if they happen
 over another window?" (the answer is no, we can click all we want in the
-chromium window.)
+chromium window without our window manager quitting.)
 
-We'll do something similar later, but first let's make our event loop a little
-smarter, so that we can at least quit intentionally. We'll use Ctrl-Alt-Backspace
-as our "Quit" combo to kill the X server, as the gods intended.
+We'll do something similar later to the desktop window later, but first let's
+make our event loop a little smarter, so that we can at least quit
+intentionally. We'll use Ctrl-Alt-Backspace as our "Quit" combo to quit our
+WM and kill the X server, as the gods intended.
 
 We'll start by adding a type switch and converting to an infinite loop, calling
 a Handle handler if it's a keypress event.
@@ -278,6 +286,8 @@ We need a way to signify from our KeyHandler that we should be quitting. We
 could add a channel, but let's just make it return an error. If the error is
 non-nil, we quit.
 
+We add our type to the switch:
+
 ### "X11 Event Loop Type Handlers"
 ```go
 case xproto.KeyPressEvent:
@@ -290,6 +300,9 @@ if err := HandleKeyPressEvent(e); err != nil {
 	break eventloop
 }
 ```
+
+And define a stub for the function we called:
+
 ### "main.go functions" +=
 ```go
 func HandleKeyPressEvent(key xproto.KeyPressEvent) error {
@@ -309,15 +322,14 @@ switch key.Detail {
 }
 ```
 
-How do we know what Keysym we want? It turns out that they're defined in
+How do we know what key we want? It turns out that they're defined in
 `/usr/include/X11/keysymdef.h`, but it would be best if we could avoid using
 CGO to include it. We'll just have to only define the ones we care about for
 now. Let's put them in a different `keysym.go` file. In fact, let's put them
-in a keysym.go package so that we can use them elsewhere if need be.
+in a `keysym` package so that we can use them elsewhere if need be.
 
 ### keysym/keysym.go
 ```go
-<<<keysym package doc>>>
 package keysym
 
 // Known KeySyms from /usr/include/X11/keysymdef.h
@@ -326,14 +338,8 @@ const (
 )
 ```
 
-
-(We'll start with the whole block from the header file which includes Backspace,
-since we're just copy/pasting anyways, and we'll start with a blank package doc
-since that's a bit of a distraction right now.)
-
-### "keysym package doc"
-```go
-```
+We'll start by defining the whole block from keysymdef.h which includes
+Backspace and add more later when we need it.
 
 ### "Known KeySym definitions"
 ```go
@@ -351,8 +357,14 @@ XK_Sys_Req      = 0xff15
 XK_Escape       = 0xff1b
 XK_Delete       = 0xffff  // Delete, rubout
 ```
+
 Now, we can handle the backspace key. We'll just return an error, so that we
 can test it.
+
+### "main.go globals" +=
+```go
+var QuitSignal error = errors.New("Quit")
+```
 
 ### "Keystroke Detail Switch" +=
 ```go
@@ -362,14 +374,14 @@ case keysym.XK_BackSpace:
 
 ### "Handle Backspace"
 ```go
-return fmt.Errorf("Quit!")
+return QuitSignal
 ```
 
 
 ### "main.go imports" +=
 ```go
 "github.com/driusan/dewm/keysym"
-"fmt"
+"errors"
 ```
 
 And now our code doesn't compile, because keycode is a byte, and our const
@@ -386,13 +398,18 @@ Let's get the keyboard mapping while starting X, too.
 ```
 
 The keyboard mapping seems to be straight forward to load: there's a GetKeyboardMapping
-function in xproto (but then we need to call Reply() on the return value to
+function in xproto (and then we need to call Reply() on the return value to
 get the actual mapping.) We'll load all of the the keycodes from 0-255 into
 a global array, so we can easily look it up.
 
 There's a "KeysymsPerKeycode" variable too, which seems relevant, because there
 will be that many elements times the number of elements we requested keycodes
 in the reply, so let's define our map as a map of slices of keysyms instead.
+
+### "main.go globals" +=
+```go
+var keymap [256][]xproto.Keysym
+```
 
 ### "Load KeyMapping"
 ```go
@@ -415,11 +432,8 @@ for i := 0; i < hiKey-loKey+1; i++ {
 }
 ```
 
-### "main.go globals" +=
-```go
-var keymap [256][]xproto.Keysym
-```
-
+Now, we can update our switch to look up the keysym in that map, rather than
+directly using the keycode.
 
 ### "HandleKeyPressEvent Implementation"
 ```go
@@ -437,11 +451,11 @@ we can see that the mask for Alt is "ModMask1")
 ### "Handle Backspace"
 ```go
 if (key.State & xproto.ModMaskControl != 0) && (key.State & xproto.ModMask1 != 0) {
-	return fmt.Errorf("Quit!")
+	return QuitSignal
 }
 return nil
 ```
 
 We don't actually manage any windows yet, and we don't have a cursor unless
-someone else creates a window and creates one, but at least we have the basics
-of something that, used as a window manager we can start, and quit.
+someone else creates a window and creates one for us, but at least we have the
+basics of something that, used as a window manager we can start, and quit.

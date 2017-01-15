@@ -27,6 +27,8 @@ resizing them to take up less space when we increase a column, so we'll need to
 sum up the SizeDeltas, subtract that from the width, and divide the remaining
 space equally.
 
+(Similar reasoning applies to windows as columns, with width and height inverted)
+
 The next problem we're going to have is: what is the active column? We have a
 pointer to the activeWindow, not the activeColumn. We could add a pointer to
 the ManagedWindow type, but so far our approach of just going through all of
@@ -35,8 +37,6 @@ keep doing that instead of risking the pointer going out of sync because we
 forget to update it somewhere. Once again, we can add it later if need be, but
 for now it's better to have less possibility for bugs until we find it becomes
 a bottleneck.
-
-(Similar reasoning applies to windows as columns, with width and height inverted)
 
 We'll define a simple Resize method on *Column and *ManagedWindow in case this
 ever gets more complicated.
@@ -145,7 +145,7 @@ have some muscle memory from those keystrokes from when I used to use Ion as
 my window manager.
 
 On second thought, I remember my pinky hurting from stretching from shift to
-H/L, so let's try Ctrl-Alt-Up/Down/Left/Right for resizing windows and columns.
+H/L, so let's try Ctrl-Alt-Up/Down/Left/Right for our resizing keystrokes.
 
 ### "Grabbed Key List" +=
 ```go
@@ -240,6 +240,13 @@ switch key.State {
 return nil
 ```
 
+Then implement our code that finds the active column or window and adjusts its
+SizeDelta.
+
+For the left/right keys, we'll make it grow the current window, heuristically as
+if we're pushing on the side of the window. This will probably drive us crazy
+in the first column, so we'll invert the left/right logic for the first column.
+
 ### "Handle Control-Alt-Right"
 ```go
 for _, wp := range workspaces {
@@ -286,19 +293,14 @@ wp.columns[i].Resize(-10)
 wp.TileWindows()
 ```
 
-And we'll do similarly for our other keys.
-
-
 ### "Grow Column i"
 ```go
 wp.columns[i].Resize(10)
 wp.TileWindows()
 ```
 
-For the left key, we'll make it grow the current window, heuristically as if
-we're pushing out the side of the window. This will probably drive us crazy
-in the first column, so we'll invert the left/right logic for the first column.
-
+We'll do similar for Up/Down, except it'll affect the window inside of the
+column, not the column.
 
 ### "Handle Control-Alt-Down"
 ```go
@@ -355,7 +357,7 @@ wp.TileWindows()
 Since we redefined our Column type and ManagedWindow types, we'll have to
 redeclare all of the places that assume Column is a []ManagedWindow or
 ManagedWindow is a xproto.Window to take into account the new types.
-.
+
 There's no significant changes from the last implementation below, we're just
 working around compile errors.
 
@@ -674,4 +676,5 @@ switch key.State {
 return nil
 ```
 
-Now, we can finally give windows a similar treatment.
+Now that we can resize windows and columns, our WM is finally getting pretty
+useable!

@@ -10,7 +10,7 @@ We can place windows by calling [ConfigureWindow](https://tronche.com/gui/x/xlib
 and forcing the position, width, height, or border to change, but to do that
 we'll have to know which windows we're managing. At startup, we'll need to gather
 a list of all existing windows, and then we'll probably have to listen changes
-in existing ones (ie. a window closes.)
+in existing ones (ie. handle when a window closes.)
 
 ### "Initialize X" +=
 ```go
@@ -60,6 +60,9 @@ type ManagedWindow xproto.Window
 ```go
 "github.com/BurntSushi/xgb/xproto"
 ```
+
+Now that we've gotten that overhead out of the way, the actual QueryTree call:
+
 ### "Gather All Windows"
 ```go
 tree, err := xproto.QueryTree(xc, xroot.Root).Reply()
@@ -71,6 +74,8 @@ if tree != nil {
 
 }
 ```
+
+And we'll populate the KnownWindows with it.
 
 ### "Generate list of known windows"
 ```go
@@ -93,7 +98,6 @@ if err := xproto.ConfigureWindowChecked(
 	[]uint32{
 		2,
 	}).Check(); err == nil {
-	println("Set border to 2!")
 	KnownWindows = append(KnownWindows, ManagedWindow(c))
 }
 ```
@@ -101,18 +105,18 @@ if err := xproto.ConfigureWindowChecked(
 It seems to have worked, which means we can probably set the width, height,
 X, and Y too.
 
-Our plan is to make the WM act like the Plan 9 acme text area, where there's
+Our plan is to make the WM act like the Plan 9 acme text editor where there's
 (generally) 2 columns. For now, we'll just make it so that there's *always*
 2 columns. Windows will always be managed to be equally spaced in the second
 column and can only be spawned in the first column if there's nothing else
 there. In fact, we'll probably want to generalize this to different screens,
 and maybe have named workspaces that can be toggled per screen. So instead
 of keeping track of known windows, let's keep track of workspaces. Windows
-will get added to workspaces, and workspaces. Workspaces will have a slice of
-columns, and try and intelligently add new windows to the right slice. We'll
-get rid of the KnownWindows global, because we'll keep track of things at the
-workspace level. Instead, we'll keep a map of workspaces. When starting up,
-we'll put them into a workspace named "default"
+will get added to workspaces. Workspaces will have a slice of columns, and
+try and intelligently add new windows to the right slice. We'll get rid of the
+KnownWindows global, because we'll keep track of things at the workspace level.
+Instead, we'll keep a map of workspaces. When starting up, we'll put them into
+a workspace named "default"
 
 ### "window.go globals"
 ```go
@@ -128,6 +132,9 @@ type Workspace struct{
 	Columns [][]ManagedWindow
 }
 ```
+
+When generating the list, we add it to the default workspace now:
+
 ### "Generate list of known windows"
 ```go
 workspaces = make(map[string]*Workspace)
@@ -141,8 +148,8 @@ for _, c := range tree.Children {
 workspaces["default"] = defaultw
 ```
 
-We should probably define that "Add" method that we just used. It'll use the
-logic that we decided on above to try and guess the right column.
+We should probably define that "Add" method that we just used.
+
 
 ### "window.go functions" +=
 ```go
@@ -150,6 +157,8 @@ func (w *Workspace) Add(win xproto.Window) error {
 	<<<Add Window to Workspace>>>
 }
 ```
+
+We'll use the logic that we decided on above to try and guess the right column.
 
 ### "Add Window to Workspace"
 ```go
@@ -185,7 +194,8 @@ return nil
 
 Now, after we're finished gathering our managed windows, we should also place
 them on the screen. Let's assume there's a TileWindows function on the workspace,
-which may return an error.
+which may return an error. `TileWindows()` will move and resize windows as
+needed.
 
 ### "Generate list of known windows" +=
 ```go
@@ -240,9 +250,8 @@ func (c Column) TileColumn(xstart, colwidth, colheight uint32) error {
 ```
 
 The TileWindows implementation should be straight forward, since it just calls
-TileColumn and returns an error if there's no screen. We'll just the screen
-is divided into evenly spaced columns, and the windows in each column are
-equally sized for now.
+TileColumn and returns an error if there's no screen. We'll just take the screen,
+and divided it up equally for now.
 
 ### "Tile Workspace Windows Implementation"
 ```go
@@ -427,7 +436,7 @@ How do we get an `xproto.ScreenInfo`? `ScreenInfo` seems to come from `SetupInfo
 
 (That sounds like something we should be doing anyways.)
 
-So then:
+So then, we initialize as:
 
 ### "Initialize X"
 ```go
@@ -478,8 +487,8 @@ we expected.
 We now just need to (re)autotile our workspace(s) if  a window is created or
 deleted.
 
-If you recall whn we initialized our window manager, we listened for key press,
-key release, buttun press, and button release events (which is why that's what
+If you recall when we initialized our window manager, we listened for key press,
+key release, button press, and button release events (which is why that's what
 gets printed.)
 
 The list of available types we can mask for is [here](https://tronche.com/gui/x/xlib/events/mask.html),
@@ -488,8 +497,8 @@ see is "StructureNotifyMask", which reports "any change in window structure."
 Clicking on the link tells us that means "CirculateNotify", "ConfigureNotify",
 "DestroyNotify", "GravityNotify", "MapNotify", "ReparentNotify", and "UnmapNotify"
 
-I know from old window managers that "Close" is called "Destroy" in some of them,
-so that seems promising. Let's add it to our mask and see what happens.
+In X11 terms, windows are "Destroyed", not "Closed", so DestroyNotify seems
+promising.
 
 ### "Root Window Event Mask"
 ```go
@@ -525,7 +534,7 @@ moves over it too, presumably to implement focus-follows pointer, but for now
 we're only concerned about the structure.)
 
 Let's send our own ChangeWindowAttributes message. The obvious place to do it
-is in our workspace.Add(ManagedWindow) method.
+is in our `workspace.Add()` method.
 
 ### "Add Window to Workspace"
 ```go
@@ -572,7 +581,7 @@ return nil
 
 Now, when we close a window, we see that we get an UnmapNotify and a DestroyNotify
 event. For now, we'll just concern ourselves with the "Destroy" event, to ensure
-that we don't accidentally try and delete the window twice.
+that we don't accidentally try and delete the window twice by processing both.
 
 Since the window was destroyed, we'll be removing it from the workspace. We
 don't know which workspaces contain the window, so we'll just remove it from
@@ -718,7 +727,7 @@ for i, c := range w.columns {
 return err
 ```
 
-Finally, we should define the RemoveWindow method that we've defined, now
+Finally, we should define the RemoveWindow method that we've used, now
 that we have everything in place to do it in a thread-safe manner:
 
 ### "window.go functions" +=
@@ -753,8 +762,8 @@ for colnum, column := range wp.columns {
 return fmt.Errorf("Window not managed by workspace")
 ```
 
-Okay, but we need to re-call TileWindows if it's removed. Let's update our
-goroutine to use a closure if RemoveWindow returns a nil error
+We still need to re-call TileWindows if it's removed. Let's update our
+goroutine to call it from a closure if RemoveWindow succeeds.
 
 ### "Remove Window From All Workspaces"
 ```go
@@ -767,41 +776,11 @@ for _, w := range workspaces {
 }
 ```
 
-Okay, now individual columns are getting managed, but we just exposed a bug where
+Now individual columns are getting managed, but we just exposed a bug where
 when we delete the last window in a column, we crash with a divide by zero error
 (from trying to calculate the height by dividing by the number of windows.) Our
 workspace tiling will have a similar bug for calculating the width, so let's fix
 them both.
-
-### "Column TileColumn implementation"
-```go
-n := uint32(len(c))
-if n == 0 {
-	return nil
-}
-
-height := colheight / n
-var err error
-for i, win := range c {
-	if werr := xproto.ConfigureWindowChecked(
-		xc,
-		xproto.Window(win),
-		xproto.ConfigWindowX|
-			xproto.ConfigWindowY|
-			xproto.ConfigWindowWidth|
-			xproto.ConfigWindowHeight,
-		[]uint32{
-			xstart,
-			uint32(i) * height,
-			colwidth,
-			height,
-		}).Check(); werr != nil {
-		err = werr
-	}
-}
-return err
-```
-
 
 ### "Column TileColumn implementation"
 ```go
@@ -848,7 +827,8 @@ we've been using fairly often:
 > event. However, if the override-redirect flag on the child had been set to
 > True (usually only on pop-up menus), the map request is performed.
 
-so let's add SubstructureRedirectMask to our mask on the root window.
+It sounds like we need to add SubstructureRedirectMask to our mask on the root
+window, so let's do that.
 
 ### "Root Window Event Mask"
 ```go
@@ -860,10 +840,11 @@ xproto.EventMaskStructureNotify |
 xproto.EventMaskSubstructureRedirect,
 ```
 
-Now when we try and create a window, we get a ConfigureRequest event, so let's
-handle the request by adding the window to the "default" workspace. (Later on,
-we'll probably want to be smarter about adding it to the proper workspace,
-but for now we only have one anyways with no way to create more.)
+Now when we try and create a window, we get a ConfigureRequest event from the
+window asking us to place it on the screen, so let's handle the request by
+adding the window to the "default" workspace. (Later on, we'll probably want to
+be smarter about adding it to the proper workspace, but for now we only have one
+anyways with no way to create more.)
  
 ### "X11 Event Loop Type Handlers" +=
 ```go
@@ -879,8 +860,8 @@ w.Add(ManagedWindow(e.Window))
 
 Still no go. If we look into it a little more, we find that ConfigureRequests
 need to be responded to with a ConfigureNotify event, so that the window knows
-that it's configuration request has been acted upon. We can even find the
-comment in wingo
+that it's configuration request has been acted upon. (We can even find this
+comment in wingo:)
 
 ```go
 // As per ICCCM 4.1.5, a window that has been moved but not resized must
@@ -931,8 +912,8 @@ w.Add(e.Window)
 
 We now have an unusual situation where the xterms we spawn appear, but only after
 we close an xterm that already exists is closed. When we look into our
-DestroyEventNotify handler, the answer is pretty obvious: we call TileWindows
-after removing a window, but not after mapping it.
+DestroyEventNotify handler, the reason is pretty obvious: we call TileWindows
+after removing a window, but not after mapping it. Oops.
 
 ### "Handle MapRequest" +=
 ```go
@@ -1010,10 +991,11 @@ return nil
 ```
 xproto.EventMaskStructureNotify,
 ```
+
 We could also improve the destroy logic to remove an empty column when there's
 no windows left in it, but since our model is acme and acme doesn't behave that
 way, maybe we shouldn't.
 
 At any rate, we're getting closer to being able to dogfood our WM. All we really
 need is a way to spawn programs (at the very least, an xterm that we can use to
-run other programs), so that will be our next exercise.
+run other programs), so that can be our next exercise in Keyboard.md.

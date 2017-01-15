@@ -8,7 +8,8 @@ Ctrl-Shift-N to add a new column and retile.
 
 This should be pretty straight forward:
 
-We just need to grab the keys
+We just need to grab the keys:
+
 ### "Grabbed Key List" +=
 ```go
 {
@@ -31,7 +32,7 @@ case keysym.XK_n:
 	<<<Handle n key>>>
 ```
 
-And add the normal state switch, in case we use them for more things later. We
+Then add our usual state switch, in case we use them for more things later. We
 don't need to check the active window, since we're just adding/deleting empty
 columns.
 
@@ -108,9 +109,10 @@ for _, w := range workspaces {
 }
 ```
 
-For deleting, we'll just lock the mutex, and create a new w.Columns, since we
+For deleting, we'll just lock the mutex, and create a new w.Columns (since we
 don't know how many items might be getting deleted, and Go slice tricks get
-dangerous if you try and modify a slice while iterating over it.
+dangerous if you try and modify a slice while iterating over it) then set
+it to the workspace's w.columns if the length has changed.
 
 ### "Handle Control-Shift-D"
 ```go
@@ -143,7 +145,7 @@ And now we should be able to create and delete columns.
 
 With our new ability to create columns with ctrl-shift-n, our startup policy of
 automatically creating a second column if the first one has something in it
-makes less sense. What if we want a single column?
+makes less sense. What if we want a single full width column?
 
 Let's update our Add Window to Workspace implementation to take out the special
 casing for the second column. If there's no columns it'll create one, if there's
@@ -200,3 +202,4 @@ default:
 return nil
 ```
 
+And we can now manage our columns in our window manager.
