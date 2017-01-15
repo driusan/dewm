@@ -336,7 +336,7 @@ XK_End = 0xff57   // EOL
 XK_Begin = 0xff58 // BOL
 ```
 
-Then grab it in the same loop:
+Then grab it in the same loop as before:
 
 ### "Grab Keys"
 ```go
@@ -491,8 +491,8 @@ if activeWindow != nil {
 We'll have to grab the "q" key, too, before we can test this.
 
 The GrabKeys is getting a little unwieldy and we can't just keep adding new keys
-to it, so let's re-architecture it a little to have an array of things we want
-to grab, and loop through them inside of our loop.
+to it like this, so let's re-architecture it a little to have an array of things
+we want to grab, and loop through them inside of our loop.
 
 We need the index of every keysym that we care about, but there may be multiple
 keys with the keysym, so let's keep an array of indices for each key that we care
@@ -741,7 +741,7 @@ return xproto.SendEventChecked(
 ).Check()
 ```
 
-Checking taowm for the string parameter we don't understand, they use:
+Checking taowm for the string parameter we don't understand above, they use:
 
 ```go
 string(xp.ClientMessageEvent{
@@ -822,5 +822,5 @@ We can now safely quit things! (We can test this by opening a couple firefox
 windows, pressing alt-q, and verifying that it prompts us with a warning that
 we're closing multiple tabs, instead of a crash report.)
 
-Next up, we'll be building on our window management and add keys for moving
+Next up, we'll be building on our window management by adding keys for moving
 windows around in MovingWindows.md.

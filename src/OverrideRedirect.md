@@ -26,8 +26,8 @@ if winattrib, err := xproto.GetWindowAttributes(xc, e.Window).Reply(); err != ni
 ```
 
 That didn't seem to help anything. If we look at the events getting printing
-when we try clicking a window, we see that we get a ClientMessage, an EnterNotify,
-and an UnmapNotify.
+when we try clicking in a window that's broken, we see that we get a ClientMessage,
+an EnterNotify, and an UnmapNotify.
 
 In our EnterNotify, we set active window. Perhaps we should check the OverrideRedirect
 there, too, because we don't want our activeWindow to point to a transient window.

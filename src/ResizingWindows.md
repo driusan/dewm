@@ -301,7 +301,7 @@ wp.TileWindows()
 ```
 
 We'll do similar for Up/Down, except it'll affect the window inside of the
-column, not the column.
+column, not the column itself.
 
 ### "Handle Control-Alt-Down"
 ```go

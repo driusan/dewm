@@ -58,10 +58,25 @@ the mix.
 
 ![dewm with multiple windows in a column](https://driusan.github.io/dewm/dewm-multiwindow.png)
 
+## Installation
+
+The generated go files are included in this repo, so that you can install dewm
+with the standard go get tool (`go get github.com/driusan/dewm`)
+
+You should then be able to add:
+
+```go
+dewm
+```
+
+to the end of your `.xinitrc` or `.xsession` file (assuming `$GOBIN` is in your
+path, otherwise you'll have to include the full the path to the executable,
+wherever `go get` compiled it to.)
+
 ## License
 
 Any code that I've written is MIT licensed. I've often used [taowm](https://github.com/nigeltao/taowm)
 as a reference when figuring out how to do things. I don't think any reasonable
-court would say this is a derivative work, but to be safe, LICENSE.taowm contains
+person would say this is a derivative work, but to be safe, LICENSE.taowm contains
 the taowm (3-clause BSD) license and applies to any code that explicltly comes
 from there. 

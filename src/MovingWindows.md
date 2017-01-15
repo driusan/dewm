@@ -6,7 +6,7 @@ obvious that, while autotiling works pretty well, there's a couple minor problem
 1. We don't always want windows arranged in the same order they spawned. Sometimes
    you want to move things around in a different order, or to move them between
    columns.
-2. We don't always want perfectly sized columns (or tiles.) Sometimes you want
+2. We don't always want perfectly sized columns (or windows.) Sometimes you want
    some leeway to make something bigger (or smaller)
 
 Let's start with the first problem.

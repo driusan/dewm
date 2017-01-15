@@ -44,13 +44,14 @@ we want to declare that we want to be the window manager, and fail if there's
 already one running.  How do we do this? 
 
 If we look at the source for wingo or taowm, they both use `github.com/BurntSushi/xgb/xproto`
-to do this. wingo in the function 'own' and taowm in 'becomeTheWM' (wingo is more
+for this this. wingo in the function 'own' and taowm in 'becomeTheWM' (wingo is more
 advanced in that it tries to replace the WM if one's already running, so
-taowm's approach is probably better for us to look at right now.)
+taowm's approach is probably better for us to learn from right now, because it's
+simpler.)
 
 taowm simply calls `xproto.ChangeWindowAttributesChecked` on the root window with
 some parameters. If the call fails, someone else has ownership of the root window.
-That approach seems simpler, so let's take that. The only problem is
+That approach seems simpler, so let's use it. The only problem is
 `ChangeWindowAttributesChecked` needs both the X connection and the window that
 we want to change attributes on (the root window, in our case) as parameters. We'll
 take a similar approach to taowm and store them in globals, because I have a
@@ -112,7 +113,7 @@ if coninfo == nil {
 ```
 
 But how do we get the root window itself? `*xproto.SetupInfo` has a Roots slice.
-An X Server can technically have multiple root windows for each screen, but in
+An X Server can technically have multiple root windows (one for each screen) but in
 practice any modern system uses the Xinerama "extension" to unify them into one
 root window so you can do things like drag windows between screens.
 
@@ -250,11 +251,11 @@ like "chromium" to our `~/.xinitrc`, we'll notice that we do, in fact, get
 a cursor on the screen (with the default X cursor when we're not over the 
 chromium window. Other window managers (like our trusty taowm) seem to get around
 this by creating a full screen desktop window in the background, but this
-is enough to answer our question of "will we get the events if they happen
+is enough to answer the question of "will we get the events if they happen
 over another window?" (the answer is no, we can click all we want in the
 chromium window without our window manager quitting.)
 
-We'll do something similar later to the desktop window later, but first let's
+We'll do something similar to the desktop window later, but first let's
 make our event loop a little smarter, so that we can at least quit
 intentionally. We'll use Ctrl-Alt-Backspace as our "Quit" combo to quit our
 WM and kill the X server, as the gods intended.
@@ -322,11 +323,11 @@ switch key.Detail {
 }
 ```
 
-How do we know what key we want? It turns out that they're defined in
-`/usr/include/X11/keysymdef.h`, but it would be best if we could avoid using
-CGO to include it. We'll just have to only define the ones we care about for
-now. Let's put them in a different `keysym.go` file. In fact, let's put them
-in a `keysym` package so that we can use them elsewhere if need be.
+How do we know what key we want? X keys are defined in `/usr/include/X11/keysymdef.h`,
+but it would be best if we could avoid using CGO to include it. We'll just have
+to only define the ones we care about for now. Let's put them in a different
+`keysym.go` file. In fact, let's put them in a `keysym` package so that we can
+use them elsewhere if need be.
 
 ### keysym/keysym.go
 ```go
@@ -390,7 +391,7 @@ physical key pressed and might change between hardware, we want the keysym,
 which corresponds to the symbolic name for the key after applying all the
 mappings for the keyboard known to X.
 
-Let's get the keyboard mapping while starting X, too.
+To fix this, we'll have to load the keyboard mapping while starting X, too.
 
 ### "Initialize X" +=
 ```go
@@ -405,6 +406,8 @@ a global array, so we can easily look it up.
 There's a "KeysymsPerKeycode" variable too, which seems relevant, because there
 will be that many elements times the number of elements we requested keycodes
 in the reply, so let's define our map as a map of slices of keysyms instead.
+
+(Note: ASCII codes below 8 don't correspond to any keys on modern keyboards.)
 
 ### "main.go globals" +=
 ```go

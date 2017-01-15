@@ -9,7 +9,7 @@ arrange them, draw border decorations, et cetera.
 We can place windows by calling [ConfigureWindow](https://tronche.com/gui/x/xlib/window/configure.html)
 and forcing the position, width, height, or border to change, but to do that
 we'll have to know which windows we're managing. At startup, we'll need to gather
-a list of all existing windows, and then we'll probably have to listen changes
+a list of all existing windows, and then we'll probably have to listen for changes
 in existing ones (ie. handle when a window closes.)
 
 ### "Initialize X" +=
@@ -113,10 +113,10 @@ there. In fact, we'll probably want to generalize this to different screens,
 and maybe have named workspaces that can be toggled per screen. So instead
 of keeping track of known windows, let's keep track of workspaces. Windows
 will get added to workspaces. Workspaces will have a slice of columns, and
-try and intelligently add new windows to the right slice. We'll get rid of the
+try to intelligently add new windows to the right slice. We'll get rid of the
 KnownWindows global, because we'll keep track of things at the workspace level.
-Instead, we'll keep a map of workspaces. When starting up, we'll put them into
-a workspace named "default"
+Instead, we'll keep a global map of workspaces. When starting up, we'll put
+them into a workspace named "default"
 
 ### "window.go globals"
 ```go
@@ -133,7 +133,8 @@ type Workspace struct{
 }
 ```
 
-When generating the list, we add it to the default workspace now:
+When generating the list, we add it to the default workspace now, instead of
+KnownWindows:
 
 ### "Generate list of known windows"
 ```go
@@ -148,7 +149,7 @@ for _, c := range tree.Children {
 workspaces["default"] = defaultw
 ```
 
-We should probably define that "Add" method that we just used.
+We should probably define the "Add" method on workspace that we just used.
 
 
 ### "window.go functions" +=
@@ -158,7 +159,7 @@ func (w *Workspace) Add(win xproto.Window) error {
 }
 ```
 
-We'll use the logic that we decided on above to try and guess the right column.
+We'll use the logic that we discussed above to try and guess the right column.
 
 ### "Add Window to Workspace"
 ```go
@@ -209,9 +210,9 @@ Except to tile them, we need to know the dimensions of the screen that we're
 tiling into. How do we get that? The xinerama package has a QueryScreens (and
 the QueryScreensReply) method, which gives us a list of screens, each with
 their own Width and Height. We can store the ScreenInfo of the screen that
-the workspace is attached to the screen (but we should use a pointer, because
-it can be nil.) While we're changing things, maybe we should make Column a type
-instead of having a slice of slices to simplify our code a little.
+the workspace is attached to (but we should use a pointer, because it can be
+nil.) While we're changing things, maybe we should make Column a type
+instead of having a slice of windows to simplify our code a little.
 
 ### "Workspace type"
 ```go
@@ -251,7 +252,7 @@ func (c Column) TileColumn(xstart, colwidth, colheight uint32) error {
 
 The TileWindows implementation should be straight forward, since it just calls
 TileColumn and returns an error if there's no screen. We'll just take the screen,
-and divided it up equally for now.
+and divide it up equally for now.
 
 ### "Tile Workspace Windows Implementation"
 ```go
@@ -517,7 +518,7 @@ gets changed.
 
 What we need is to know if any children's structure changed.
 
-Looking to our trusty taowm yet again, we see that when managing windows it
+Looking to our trusty taowm again, we see that when managing windows it
 does:
 
 ```go
@@ -530,8 +531,8 @@ check(xp.ChangeWindowAttributesChecked(xConn, xWin, xp.CwEventMask,
 
 So, when managing a window, we need to tell the X server to change the attributes
 so that it notifies us if that window changes. (They're looking for if the mouse
-moves over it too, presumably to implement focus-follows pointer, but for now
-we're only concerned about the structure.)
+moves over it too, presumably to determine who has focus, but for now we're only
+concerned about the structure.)
 
 Let's send our own ChangeWindowAttributes message. The obvious place to do it
 is in our `workspace.Add()` method.
@@ -605,7 +606,7 @@ for _, w := range workspaces {
 ```
 
 Since we're going to be modifying the underlying slice(s) concurrently, we should
-probably add a Mutex to our workspace when we add or remove windows. (In fact,
+probably add a mutex to our workspace when we add or remove windows. (In fact,
 we should also unexport columns to make sure that the mutex is always used and
 we can only do it safely.)
 
@@ -768,19 +769,17 @@ goroutine to call it from a closure if RemoveWindow succeeds.
 ### "Remove Window From All Workspaces"
 ```go
 for _, w := range workspaces {
-	go func() {
+	go func(w *Workspace) {
 		if err := w.RemoveWindow(e.Window); err == nil {
 			w.TileWindows()
 		}
-	}()
+	}(w)
 }
 ```
 
 Now individual columns are getting managed, but we just exposed a bug where
 when we delete the last window in a column, we crash with a divide by zero error
-(from trying to calculate the height by dividing by the number of windows.) Our
-workspace tiling will have a similar bug for calculating the width, so let's fix
-them both.
+(from trying to calculate the height by dividing by the number of windows.)
 
 ### "Column TileColumn implementation"
 ```go
@@ -877,7 +876,7 @@ event. They don't actively manage the window until getting a MapRequest
 (which makes sense, because that's what a MapRequest is.)
 
 Why don't we try just echoing back the event as a ConfigureNotify when we get
-the ConfigureRequest and see what happens? This will mean that the window gets
+the ConfigureRequest and see what happens? This should mean that the window gets
 positioned in more or less the same way it would if there was no window manager
 running, and then when we get a MapRequest we can start actively managing it.
 

@@ -219,11 +219,11 @@ eventloop:
 			}
 		case xproto.DestroyNotifyEvent:
 			for _, w := range workspaces {
-				go func() {
+				go func(w *Workspace) {
 					if err := w.RemoveWindow(e.Window); err == nil {
 						w.TileWindows()
 					}
-				}()
+				}(w)
 			}
 			if activeWindow != nil && e.Window == *activeWindow {
 				activeWindow = nil

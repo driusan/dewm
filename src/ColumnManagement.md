@@ -145,7 +145,8 @@ And now we should be able to create and delete columns.
 
 With our new ability to create columns with ctrl-shift-n, our startup policy of
 automatically creating a second column if the first one has something in it
-makes less sense. What if we want a single full width column?
+makes less sense. What if we want a single full width column with many windows
+in it?
 
 Let's update our Add Window to Workspace implementation to take out the special
 casing for the second column. If there's no columns it'll create one, if there's
