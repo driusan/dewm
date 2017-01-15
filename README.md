@@ -47,6 +47,17 @@ These keybindings are currently hardcoded, but may one day be configurable.
 * `Alt-Shift-Q` destroy the current window
 * `Ctrl-Alt-Backspace` quit dewm
 
+## Screenshots
+
+This is what dewm looks like with two windows in two columns:
+
+![dewm with two columns](https://driusan.github.io/dewm/dewm-twocolumn.png)
+
+And this is it looks like if, after browsing a bit, you threw an xterm into
+the mix.
+
+![dewm with multiple windows in a column](https://driusan.github.io/dewm/dewm-multiwindow.png)
+
 ## License
 
 Any code that I've written is MIT licensed. I've often used [taowm](https://github.com/nigeltao/taowm)
