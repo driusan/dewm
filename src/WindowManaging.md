@@ -484,7 +484,7 @@ If we try quiting and restarting X with 0, 1, or multiple windows started in
 our `.xinitrc` before starting our window manager, we see they get tiled as
 we expected.
 
-We now just need to (re)autotile our workspace(s) if  a window is created or
+We now just need to (re)autotile our workspace(s) if a window is created or
 deleted.
 
 If you recall when we initialized our window manager, we listened for key press,

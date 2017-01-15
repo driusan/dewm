@@ -210,6 +210,7 @@ switch key.State {
 }
 return nil
 ```
+
 ### "Handle Left key"
 ```go
 if activeWindow == nil {
@@ -598,7 +599,7 @@ if err := defaultw.TileWindows(); err != nil {
 	log.Println(err)
 }
 ```
- 
+
 ### "Handle h key"
 ```go
 if activeWindow == nil {
