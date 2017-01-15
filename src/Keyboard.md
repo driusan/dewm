@@ -111,7 +111,8 @@ add a hard-coded Alt-E to spawn an terminal, just so that I don't keep pressing
 it and not being able to figure out why nothing is happening.
 
 We'll have to add XK_e to our keysym map, with the value from the X11 keysymdef.h,
-but while we're at it let's add all of the letters from Latin1.
+but while we're at it let's add all of the letters from Latin1, and the
+standard up/down/left/right keys.
 
 ### "Known KeySym definitions" +=
 ```go
@@ -316,6 +317,19 @@ XK_udiaeresis = 0x00fc     // U+00FC LATIN SMALL LETTER U WITH DIAERESIS
 XK_yacute = 0x00fd         // U+00FD LATIN SMALL LETTER Y WITH ACUTE
 XK_thorn = 0x00fe          // U+00FE LATIN SMALL LETTER THORN
 XK_ydiaeresis = 0x00ff     // U+00FF LATIN SMALL LETTER Y WITH DIAERESIS
+
+// Cursor control & motion
+XK_Home = 0xff50
+XK_Left = 0xff51  // Move left, left arrow
+XK_Up = 0xff52    // Move up, up arrow
+XK_Right = 0xff53 // Move right, right arrow
+XK_Down = 0xff54  // Move down, down arrow
+XK_Prior = 0xff55 // Prior, previous
+XK_Page_Up = 0xff55
+XK_Next = 0xff56 // Next
+XK_Page_Down = 0xff56
+XK_End = 0xff57   // EOL
+XK_Begin = 0xff58 // BOL
 ```
 
 Then grab it in the same loop:

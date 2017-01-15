@@ -133,7 +133,6 @@ type Workspace struct{
 workspaces = make(map[string]*Workspace)
 defaultw := &Workspace{}
 for _, c := range tree.Children {
-	
 	if err := defaultw.Add(c); err != nil {
 		log.Println(err)
 	}
@@ -166,7 +165,7 @@ if err := xproto.ConfigureWindowChecked(
 switch len(w.Columns) {
 case 0:
 	w.Columns = [][]ManagedWindow{
-		{ win },
+		{ ManagedWindow(win) },
 	}
 case 1:
 	if len(w.Columns[0]) == 0 {
@@ -174,7 +173,7 @@ case 1:
 		w.Columns[0] = append(w.Columns[0], win)
 	} else {
 		// There's something in the primary column, so create a new one.
-		w.Columns = append(w.Columns, []ManagedWindow{win})
+		w.Columns = append(w.Columns, []ManagedWindow{ManagedWindow(win)})
 	}
 default:
 	// Add to the last column
@@ -397,7 +396,7 @@ workspaces = make(map[string]*Workspace)
 defaultw := &Workspace{}
 for _, c := range tree.Children {
 	
-	if err := defaultw.Add(ManagedWindow(c)); err != nil {
+	if err := defaultw.Add(c); err != nil {
 		log.Println(err)
 	}
 
@@ -533,7 +532,7 @@ is in our workspace.Add(ManagedWindow) method.
 // Ensure that we can manage this window.
 if err := xproto.ConfigureWindowChecked(
 	xc,
-	xproto.Window(win),
+	win,
 	xproto.ConfigWindowBorderWidth,
 	[]uint32{
 		2,
@@ -544,7 +543,7 @@ if err := xproto.ConfigureWindowChecked(
 // Get notifications when this window is deleted.
 if err := xproto.ChangeWindowAttributesChecked(
 	xc,
-	xproto.Window(win),
+	win,
 	xproto.CwEventMask,
 	[]uint32{xproto.EventMaskStructureNotify}).Check(); err != nil {
 	return err
@@ -553,20 +552,20 @@ if err := xproto.ChangeWindowAttributesChecked(
 switch len(w.Columns) {
 case 0:
 	w.Columns = []Column{
-		{ win },
+		{ ManagedWindow(win) },
 	}
 case 1:
 	if len(w.Columns[0]) == 0 {
 		// No active window in first column, so use it.
-		w.Columns[0] = append(w.Columns[0], win)
+		w.Columns[0] = append(w.Columns[0], ManagedWindow(win))
 	} else {
 		// There's something in the primary column, so create a new one.
-		w.Columns = append(w.Columns, Column{win})
+		w.Columns = append(w.Columns, Column{ManagedWindow(win)})
 	}
 default:
 	// Add to the last column
 	i := len(w.Columns)-1
-	w.Columns[i] = append(w.Columns[i], win)
+	w.Columns[i] = append(w.Columns[i], MangedWindow(win))
 }
 return nil
 ```
@@ -612,7 +611,6 @@ type Workspace struct{
 }
 ```
 
-Once again, we'll 
 ### "Add Window to Workspace"
 ```go
 // Ensure that we can manage this window.
@@ -646,15 +644,15 @@ case 0:
 case 1:
 	if len(w.columns[0]) == 0 {
 		// No active window in first column, so use it.
-		w.columns[0] = append(w.columns[0], win)
+		w.columns[0] = append(w.columns[0], ManagedWindow(win))
 	} else {
 		// There's something in the primary column, so create a new one.
-		w.columns = append(w.columns, Column{win})
+		w.columns = append(w.columns, Column{ManagedWindow(win)})
 	}
 default:
 	// Add to the last column
 	i := len(w.columns)-1
-	w.columns[i] = append(w.columns[i], win)
+	w.columns[i] = append(w.columns[i], ManagedWindow(win))
 }
 return nil
 ```
@@ -669,7 +667,7 @@ change it there.)
 workspaces = make(map[string]*Workspace)
 defaultw := &Workspace{mu: &sync.Mutex{}}
 for _, c := range tree.Children {
-	if err := defaultw.Add(ManagedWindow(c)); err != nil {
+	if err := defaultw.Add(c); err != nil {
 		log.Println(err)
 	}
 
@@ -981,29 +979,29 @@ defer w.mu.Unlock()
 switch len(w.columns) {
 case 0:
 	w.columns = []Column{
-		{ win },
+		{ ManagedWindow(win) },
 	}
 case 1:
 	if len(w.columns[0]) == 0 {
 		// No active window in first column, so use it.
-		w.columns[0] = append(w.columns[0], win)
+		w.columns[0] = append(w.columns[0], ManagedWindow(win))
 	} else {
 		// There's something in the primary column, so create a new one.
-		w.columns = append(w.columns.Windows, Column{Windows: { win }, SizeDelta: 0})
+		w.columns = append(w.columns, Column{ ManagedWindow(win) })
 	}
 default:
 	// Add to the first empty column we can find, and shortcircuit out
 	// if applicable.
 	for i, c := range w.columns {
 		if len(c) == 0 {
-			w.columns[i] = append(w.columns[i], win)
+			w.columns[i] = append(w.columns[i], ManagedWindow(win))
 			return nil
 		}
 	}
 
 	// No empty columns, add to the last one.
 	i := len(w.columns)-1
-	w.columns[i] = append(w.columns[i], win)
+	w.columns[i] = append(w.columns[i], ManagedWindow(win))
 }
 return nil
 ```

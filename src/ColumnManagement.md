@@ -22,6 +22,7 @@ We just need to grab the keys
 ```
 
 And add them to the key handler switch:
+
 ### "Keystroke Detail Switch" +=
 ```go
 case keysym.XK_d:
@@ -139,3 +140,63 @@ And now we should be able to create and delete columns.
 ```go
 "github.com/BurntSushi/xgb/xproto"
 ```
+
+With our new ability to create columns with ctrl-shift-n, our startup policy of
+automatically creating a second column if the first one has something in it
+makes less sense. What if we want a single column?
+
+Let's update our Add Window to Workspace implementation to take out the special
+casing for the second column. If there's no columns it'll create one, if there's
+an empty column, it'll use it, and otherwise new windows will go into the last
+column.
+
+### "Add Window to Workspace"
+```go
+// Ensure that we can manage this window.
+if err := xproto.ConfigureWindowChecked(
+	xc,
+	win,
+	xproto.ConfigWindowBorderWidth,
+	[]uint32{
+		2,
+	}).Check(); err != nil {
+	return err
+}
+
+// Get notifications when this window is deleted.
+if err := xproto.ChangeWindowAttributesChecked(
+	xc,
+	win,
+	xproto.CwEventMask,
+	[]uint32{
+	<<<Window Event Mask>>>
+	},
+	).Check(); err != nil {
+	return err
+}
+
+w.mu.Lock()
+defer w.mu.Unlock()
+
+switch len(w.columns) {
+case 0:
+	w.columns = []Column{
+		Column{Windows: []ManagedWindow{ ManagedWindow{win, 0} }, SizeDelta: 0},
+	}
+default:
+	// Add to the first empty column we can find, and shortcircuit out
+	// if applicable.
+	for i, c := range w.columns {
+		if len(c.Windows) == 0 {
+			w.columns[i].Windows = append(w.columns[i].Windows, ManagedWindow{win, 0})
+			return nil
+		}
+	}
+
+	// No empty columns, add to the last one.
+	i := len(w.columns)-1
+	w.columns[i].Windows = append(w.columns[i].Windows, ManagedWindow{win, 0})
+}
+return nil
+```
+

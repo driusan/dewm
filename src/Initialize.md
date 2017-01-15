@@ -368,7 +368,7 @@ return fmt.Errorf("Quit!")
 
 ### "main.go imports" +=
 ```go
-"github.com/driusan/acmewm/keysym"
+"github.com/driusan/dewm/keysym"
 "fmt"
 ```
 
