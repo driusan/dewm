@@ -140,5 +140,66 @@ if !focused {
 }
 ```
 
+This mostly fixes things, except after windows get spawned or deleted our focus
+doesn't automatically get switched to the new window that is being pointed at,
+and we lost our focus-follows-pointer semantics.
+
+The easiest fix is probably to add a check to the end of our TileWindows()
+implementation, to see which window is under the pointer, but there's no obvious
+way to do that. XWarpPointer, however, let's us move the pointer relative to
+a window. Since we have the pointer to the active window, we can easily just
+move it to something like (10,10) relative to the current active window as long
+as we save the activeWindow pointer before doing the tiling.
+
+I'm not sure if this behaviour will be confusing, but it'll fix the problem
+of the retiling changing the focused window, both here and when moving windows
+with Alt-H/J/K/L, so let's try it out.
+
+### "Tile Workspace Windows Implementation"
+```go
+if w.Screen == nil {
+	return fmt.Errorf("Workspace not attached to a screen.")
+}
+
+n := uint32(len(w.columns))
+if n == 0 {
+	return fmt.Errorf("No columns to tile")
+}
+var totalDeltas int
+for _, c := range w.columns {
+	totalDeltas += c.SizeDelta
+}
+
+size := uint32(int(w.Screen.Width)-totalDeltas) / n
+var err error
+
+// Keep track of the already incorporated deltas, to add to xstart
+// for the column.TileWindow call
+usedDeltas := 0
+prevWin := activeWindow
+for i, c := range w.columns {
+	if err != nil {
+		// Don't overwrite err if there's an error, but still
+		// tile the rest of the columns instead of returning.
+		c.TileColumn(uint32((i*int(size))+usedDeltas), uint32(int(size)+c.SizeDelta), uint32(w.Screen.Height))
+	} else {
+		err = c.TileColumn(uint32((i*int(size))+usedDeltas), uint32(int(size)+c.SizeDelta), uint32(w.Screen.Height))
+	}
+	usedDeltas += c.SizeDelta
+}
+if prevWin != nil {
+	if err := xproto.WarpPointerChecked(xc, 0, *prevWin, 0, 0, 0, 0, 10, 10).Check(); err != nil {
+		log.Print(err)
+	}
+}
+return err
+```
+
+### "window.go imports" +=
+```go
+"log"
+```
+
 Hopefully, we've now done enough that we can use our window manager as a daily
 driver.
+
