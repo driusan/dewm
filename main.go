@@ -227,6 +227,9 @@ eventloop:
 			}
 			if activeWindow != nil && e.Window == *activeWindow {
 				activeWindow = nil
+				if _, err := xproto.SetInputFocusChecked(xc, xproto.InputFocusPointerRoot, xroot.Root, xproto.TimeCurrentTime).Reply(); err != nil {
+					log.Println(err)
+				}
 			}
 		case xproto.ConfigureRequestEvent:
 			ev := xproto.ConfigureNotifyEvent{
@@ -282,7 +285,7 @@ eventloop:
 				}
 			}
 			if !focused {
-				if _, err := xproto.SetInputFocusChecked(xc, 0, e.Event, e.Time).Reply(); err != nil {
+				if _, err := xproto.SetInputFocusChecked(xc, xproto.InputFocusPointerRoot, e.Event, e.Time).Reply(); err != nil {
 					log.Println(err)
 				}
 			}

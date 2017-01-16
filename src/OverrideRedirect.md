@@ -203,3 +203,53 @@ return err
 Hopefully, we've now done enough that we can use our window manager as a daily
 driver.
 
+Except we've also now introduced a rather nasty bug where after closing the last
+window, we stop receiving any events at all, and we can no longer do things like
+Ctrl+Alt+Backspace to quit, or Alt+E to spawn an xterm, leaving our X session
+useless with nothing to do but reboot and start over.
+
+Since we're manually calling XSetInputFocus, we're losing the standard X Windows
+focus follows pointer semantics. In particular, after the last window gets
+closed, the root window doesn't automatically get the focus back, and nothing is
+getting the input.
+
+We can tackle this in two ways: the second parameter in "SetInputFocus" is
+"RevertTo" which specifies what to do if the focused window becomes "unviewable"
+(which presumably includes being closed) or we can just call "SetInputFocus on
+the root window when setting activeWindow = nil upon destroying a window.
+
+To be safe, let's just do both.
+
+### "Update activeWindow Pointer"
+```go
+if activeWindow != nil && e.Window == *activeWindow {
+	activeWindow = nil
+	if _, err := xproto.SetInputFocusChecked(xc, xproto.InputFocusPointerRoot, xroot.Root, xproto.TimeCurrentTime).Reply(); err != nil {
+		log.Println(err)
+	}
+}
+```
+
+
+### "Send WM_TAKE_FOCUS message if applicable"
+```go
+prop, err := xproto.GetProperty(xc, false, e.Event, atomWMProtocols,
+	xproto.GetPropertyTypeAny, 0, 64).Reply()
+focused := false
+if err == nil {
+TakeFocusPropLoop:
+	for v := prop.Value; len(v) >= 4; v = v[4:] {
+		switch xproto.Atom( uint32(v[0]) | uint32(v[1]) <<8 | uint32(v[2]) <<16 | uint32(v[3]) << 24 ) {
+		case atomWMTakeFocus:
+			<<<Send WM_TAKE_FOCUS message to e.Event>>>
+			focused = true
+			break TakeFocusPropLoop
+		}
+	}
+}
+if !focused {
+	if _, err := xproto.SetInputFocusChecked(xc, xproto.InputFocusPointerRoot, e.Event, e.Time).Reply(); err != nil {
+		log.Println(err)
+	}
+}
+```

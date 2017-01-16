@@ -458,10 +458,16 @@ We should also check that we unset it when a window is destroyed.
 
 ### "DestroyEvent Handler" +=
 ```go
+<<<Update activeWindow Pointer>>>
+```
+
+### "Update activeWindow Pointer"
+```go
 if activeWindow != nil && e.Window == *activeWindow {
 	activeWindow = nil
 }
 ```
+
 
 Now, we should be able to call DestroyWindowChecked when we push some kind of
 "quit" key. Let's use alt-q. (I don't think I type that very often, so it's
