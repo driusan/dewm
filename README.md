@@ -38,6 +38,7 @@ These keybindings are currently hardcoded, but may one day be configurable.
 * `Ctrl-Alt-Left/Right` increase/decrease the size of the column with the 
    currently active window. (Other columns will be dynamically resized to
    make up for it.)
+* `Ctrl-Alt-Enter` toggle whether or not the current window is maximized.
 * `Ctrl-Shift-N` create a new column 
 * `Ctrl-Shift-D` delete any empty columns
 

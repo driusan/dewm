@@ -1,6 +1,6 @@
 package main
 
-//go:generate lmt src/Initialize.md src/WindowManaging.md src/Keyboard.md src/MovingWindows.md src/ResizingWindows.md src/ColumnManagement.md src/OverrideRedirect.md src/GoGenerate.md
+//go:generate lmt src/Initialize.md src/WindowManaging.md src/Keyboard.md src/MovingWindows.md src/ResizingWindows.md src/ColumnManagement.md src/OverrideRedirect.md src/GoGenerate.md src/Fullscreen.md
 // THIS IS A MACHINE GENERATED FILE BY THE ABOVE COMMAND; DO NOT EDIT
 
 import (
@@ -151,6 +151,10 @@ func main() {
 		{
 			sym:       keysym.XK_n,
 			modifiers: xproto.ModMaskControl | xproto.ModMaskShift,
+		},
+		{
+			sym:       keysym.XK_Return,
+			modifiers: xproto.ModMaskControl | xproto.ModMask1,
 		},
 	}
 
@@ -596,6 +600,31 @@ func HandleKeyPressEvent(key xproto.KeyPressEvent) error {
 			}
 		default:
 			log.Printf("Unhandled state: %v\n", key.State)
+		}
+		return nil
+	case keysym.XK_Return:
+		switch key.State {
+		case xproto.ModMaskControl | xproto.ModMask1:
+			for _, w := range workspaces {
+				go func(w *Workspace) {
+					if w.IsActive() {
+						if w.maximizedWindow == nil {
+							w.maximizedWindow = activeWindow
+						} else {
+							if err := xproto.ConfigureWindowChecked(
+								xc,
+								*w.maximizedWindow,
+								xproto.ConfigWindowBorderWidth,
+								[]uint32{2},
+							).Check(); err != nil {
+								log.Print(err)
+							}
+							w.maximizedWindow = nil
+						}
+						w.TileWindows()
+					}
+				}(w)
+			}
 		}
 		return nil
 	default:

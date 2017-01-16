@@ -22,6 +22,8 @@ type Workspace struct {
 	Screen  *xinerama.ScreenInfo
 	columns []Column
 
+	maximizedWindow *xproto.Window
+
 	mu *sync.Mutex
 }
 
@@ -85,6 +87,26 @@ func (w *Workspace) TileWindows() error {
 		return fmt.Errorf("Workspace not attached to a screen.")
 	}
 
+	if w.maximizedWindow != nil {
+		return xproto.ConfigureWindowChecked(
+			xc,
+			*w.maximizedWindow,
+			xproto.ConfigWindowX|
+				xproto.ConfigWindowY|
+				xproto.ConfigWindowWidth|
+				xproto.ConfigWindowHeight|
+				xproto.ConfigWindowBorderWidth|
+				xproto.ConfigWindowStackMode,
+			[]uint32{
+				0,
+				0,
+				uint32(w.Screen.Width),
+				uint32(w.Screen.Height),
+				0,
+				xproto.StackModeAbove,
+			},
+		).Check()
+	}
 	n := uint32(len(w.columns))
 	if n == 0 {
 		return fmt.Errorf("No columns to tile")
@@ -174,6 +196,9 @@ func (wp *Workspace) RemoveWindow(w xproto.Window) error {
 			// Found the window at at idx, so delete it and return.
 			// (I wish Go made it easier to delete from a slice.)
 			wp.columns[colnum].Windows = append(column.Windows[0:idx], column.Windows[idx+1:]...)
+			if wp.maximizedWindow != nil && w == *wp.maximizedWindow {
+				wp.maximizedWindow = nil
+			}
 			return nil
 		}
 	}
