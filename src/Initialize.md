@@ -276,10 +276,8 @@ for {
 	switch e := xev.(type) {
 		<<<X11 Event Loop Type Handlers>>>
 		default:
-			log.Println(err)
+			log.Println(xev)
 	}
-	log.Println(xev)
-
 }
 ```
 

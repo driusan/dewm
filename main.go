@@ -294,10 +294,8 @@ eventloop:
 				}
 			}
 		default:
-			log.Println(err)
+			log.Println(xev)
 		}
-		log.Println(xev)
-
 	}
 }
 

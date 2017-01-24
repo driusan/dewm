@@ -1,4 +1,4 @@
-## dewm
+## dewm - a window manager written with literate programming
 
 dewm is a pure Go autotiling window manager. It's intended to make the text
 editor [de](https://github.com/driusan/de) feel more similar to acme when windows
